@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Herramienta digital de Peso y Balance</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f9;--card:#fff;--tx:#1b2430;--mu:#5d6b7c;--bd:#d9dfe6;--ac:#1f5fbf;--ok:#17803d;--bad:#c62828;--okbg:#e5f5ea;--badbg:#fdeaea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#12161c;--card:#1b222b;--tx:#e8edf3;--mu:#97a4b4;--bd:#2c3744;--ac:#6ea8ff;--ok:#5fd68a;--bad:#ff8a80;--okbg:#17321f;--badbg:#3a1c1c}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1000px;margin:auto;padding:16px}h1{font-size:1.3rem;margin:.2em 0}h2{font-size:1.02rem;margin:0 0 8px}
+.sub,.note{color:var(--mu)}.note{font-size:.8rem}
+nav{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+button,select{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 13px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}.grid .card{margin:0}
+label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0;font-size:.9rem}
+input[type=number]{width:96px;padding:5px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{border-bottom:1px solid var(--bd);padding:5px 8px;text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
+td.w{white-space:normal;text-align:left}
+.st{padding:3px 10px;border-radius:99px;font-weight:600;font-size:.78rem}.ok{background:var(--okbg);color:var(--ok)}.bad{background:var(--badbg);color:var(--bad)}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}.hide{display:none}
+svg text{fill:var(--mu);font-size:11px}ol,ul{padding-left:20px}.ai{border-left:4px solid var(--ac)}
+</style></head><body><main>
+<h1>Herramienta digital de Peso y Balance</h1>
+<p class="sub">Performance de Aeronaves II · DC-9, A320, B727, B737 y Beechcraft 1900D. Datos referenciales: reemplácelos por los de la asignatura.</p>
+<nav id="tabs"></nav>
+
+<section id="calc">
+<div class="bar"><select id="ac"></select><button onclick="pre(0)">Vuelo típico</button><button onclick="pre(1)">Carga atrás</button><button onclick="pre(2)">Sobrepeso</button></div>
+<div class="grid">
+<div class="card"><h2>Pasajeros (84 kg c/u)</h2><div id="pax"></div></div>
+<div class="card"><h2>Carga (kg)</h2><div id="cargo"></div><h2 style="margin-top:12px">Combustible (kg)</h2><div id="fuel"></div></div>
+<div class="card"><h2>Resultado</h2><div id="res"></div></div>
+<div class="card"><h2>Envolvente CG</h2><svg id="env" viewBox="0 0 340 280" width="100%"></svg></div></div>
+<div class="card ai" style="margin-top:12px"><h2>Asistente de interpretación</h2><div id="ai"></div></div>
+<div class="card"><h2>Hoja de cálculo (equivale a la manual)</h2><div class="tw"><table id="tb"></table></div>
+<p class="note">Momento = peso × brazo. CG = Σmomentos ÷ Σpesos. %MAC = (CG − LEMAC) ÷ MAC × 100.</p></div>
+</section>
+
+<section id="ex" class="hide"><div class="card"><h2>Ejercicio libre (pesos, brazos y límites editables)</h2><p class="note">Escriba los datos de su enunciado. Resultados por condición: ZFW, TOW y LW.</p><div class="bar"><select id="exa" onchange="exAc()"></select><button onclick="exBase()">Guardar como caso base</button></div><div id="exb"></div></div></section>
+<section id="pf" class="hide"><div class="card"><h2>Performance de despegue: V1, VR y V2 (molde)</h2><p class="note">Las tablas están vacías: complételas con los datos de la DGAC y del fabricante (AFM). La herramienta interpola por peso y aplica las correcciones que usted indique.</p>
+<div class="bar"><select id="pfa" onchange="pfRender()"></select><select id="pfc" onchange="pfRender()"></select></div>
+<label>Nota de la tabla (flaps, condiciones, fuente)<input type="text" id="pfn" style="width:100%;max-width:380px;padding:5px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit" oninput="pfMeta('n',this.value)"></label>
+<div class="tw"><table id="pft"></table></div>
+<div class="grid" style="margin:12px 0"><div><h2>Correcciones (opcional)</h2><label>Corrección por altitud (kt por 1000 ft)<input type="number" step="any" id="pf_ca" oninput="pfMeta('ca',this.value)"></label><label>Altitud de referencia de la tabla (ft)<input type="number" step="any" id="pf_ra" oninput="pfMeta('ra',this.value)"></label><label>Corrección por temperatura (kt por 10 °C)<input type="number" step="any" id="pf_ct" oninput="pfMeta('ct',this.value)"></label><label>Temperatura de referencia (°C)<input type="number" step="any" id="pf_rt" oninput="pfMeta('rt',this.value)"></label></div>
+<div><h2>Condiciones del despegue</h2><label>Peso de despegue (kg)<input type="number" id="pf_w" oninput="pfCalc()"></label><label>Altitud de presión (ft)<input type="number" id="pf_al" oninput="pfCalc()"></label><label>Temperatura (°C)<input type="number" id="pf_t" oninput="pfCalc()"></label><label>Pista disponible (m)<input type="number" id="pf_p" oninput="pfCalc()"></label><button onclick="pfTow()">Usar TOW de Ejercicio libre</button></div></div>
+<div id="pfr"></div></div></section>
+<section id="db" class="hide"><div class="card"><h2>Base de datos de aeronaves</h2>
+<p class="note">Edite BEW y límites (kg) con los valores de su separata; la calculadora se actualiza sola. Fuente APA: complete por cada aeronave.</p>
+<div class="tw"><table id="dbt"></table></div></div></section>
+
+<section id="op" class="hide"><div class="card"><h2>Planificación de la operación</h2><ol>
+<li><b>Datos de entrada:</b> despacho obtiene del sistema de reservas el número de pasajeros por zona, y de rampa el peso de carga por bodega.</li>
+<li><b>Datos fijos:</b> el BEW, los brazos y los límites se toman de la base de datos aprobada de cada aeronave (AFM / manual de peso y balance).</li>
+<li><b>Cálculo:</b> la herramienta obtiene ZFW, TOW, LW y %MAC, y compara con MZFW, MTOW, MLW y la envolvente.</li>
+<li><b>Decisión:</b> si algún punto sale de límites, despacho redistribuye pasajeros o carga y recalcula.</li>
+<li><b>Verificación:</b> un segundo despachador o el piloto confirma el resultado y se archiva la hoja de carga.</li>
+<li><b>Respaldo:</b> ante falla del dispositivo se usa el método manual con las mismas tablas.</li></ol></div></section>
+
+<section id="fin" class="hide"><div class="card"><h2>Plan financiero (valores referenciales editables, USD)</h2>
+<div class="grid"><div><label>Horas de desarrollo<input type="number" id="f1" value="120"></label><label>Costo por hora<input type="number" id="f2" value="15"></label>
+<label>Hosting y dominio al año<input type="number" id="f3" value="60"></label><label>Capacitación (única vez)<input type="number" id="f4" value="200"></label><label>Mantenimiento al año<input type="number" id="f5" value="300"></label></div>
+<div><label>Minutos por cálculo manual<input type="number" id="f6" value="15"></label><label>Minutos por cálculo digital<input type="number" id="f7" value="2"></label>
+<label>Vuelos por día<input type="number" id="f8" value="20"></label><label>Costo por hora de despachador<input type="number" id="f9" value="12"></label></div></div>
+<div id="fres"></div></div></section>
+
+<section id="ev" class="hide"><div class="card"><h2>Evaluación</h2>
+<p><b>Razones:</b> centralizar los datos de cada aeronave en una base única evita usar datos de tipos equivocados y reduce errores aritméticos.</p>
+<p><b>Preferencias:</b> base editable, cálculo inmediato, alertas de límites y registro visible del cálculo (hoja de momentos).</p>
+<p><b>Condiciones:</b> los datos deben provenir de documentos aprobados, cada cambio de BEW debe ser validado y debe existir un método manual de respaldo.</p>
+<p><b>Metas:</b> cero errores de cálculo, tiempo de cálculo menor a 2 minutos, y base de datos con las 4 aeronaves verificada contra el AFM.</p></div>
+<div class="card"><h2>Instructivo</h2><ol><li>Elija la aeronave.</li><li>Ingrese pasajeros por zona, carga y combustible.</li><li>Revise ZFW, TOW, LW y la envolvente.</li><li>Lea el asistente si hay límites excedidos y corrija.</li><li>Compare con la hoja de cálculo para validar contra el método manual.</li></ol></div>
+<div class="card"><h2>Manual vs digital</h2><div class="tw"><table><tr><th>Aspecto</th><th>Manual</th><th>Digital</th></tr>
+<tr><td>Tiempo</td><td>Minutos</td><td>Instantáneo</td></tr><tr><td>Errores</td><td>Probables</td><td>Eliminados por fórmula</td></tr>
+<tr><td>Límites</td><td>Revisión visual</td><td>Alertas automáticas</td></tr><tr><td>Escenarios</td><td>Se rehacen</td><td>Segundos</td></tr>
+<tr><td>Limitación</td><td>Lento</td><td>Depende de datos correctos y de respaldo manual</td></tr></table></div></div></section>
+
+<script>
+const A={a320:{n:"Airbus A320-200",L:16.8,M:4.2,BEW:42500,Z:61000,T:73500,W:64500,s:45,sp:4.4,d:7.5,cf:3400,ca:4500,fc:19000,tx:200,cr:[2,4],e:[14,22,38,36,38000]},
+b737:{n:"Boeing 737-800",L:15.9,M:3.42,BEW:41400,Z:62700,T:79000,W:66300,s:40,sp:3.6,d:7.5,cf:4000,ca:5000,fc:20900,tx:200,cr:[2,4],e:[14,22,38,36,40000]},
+b727:{n:"Boeing 727-200",L:17,M:4.6,BEW:46000,Z:65800,T:95000,W:72600,s:36,sp:3.9,d:7.5,cf:4500,ca:6000,fc:30000,tx:300,cr:[3,5],e:[12,20,36,32,45000]},
+dc9:{n:"McDonnell Douglas DC-9-10",L:14.5,M:3.3,BEW:22700,Z:35400,T:41100,W:37000,s:22,sp:3.3,d:8,cf:1000,ca:1800,fc:11000,tx:150,cr:[2,3],e:[14,22,38,34,28000]},
+b1900:{n:"Beechcraft 1900D",L:8,M:1.95,BEW:4700,Z:7110,T:7688,W:7530,s:5,sp:1.5,d:5.5,cf:270,ca:770,fc:1800,tx:30,cr:[2,0],e:[16,20,38,34,5000]}};
+const PW=84,$=i=>document.getElementById(i),f=(x,d=0)=>x.toLocaleString("es-PE",{minimumFractionDigits:d,maximumFractionDigits:d});
+const tabs=[["calc","Calculadora"],["ex","Ejercicio libre"],["pf","Performance V1/VR/V2"],["db","Base de datos"],["op","Operación"],["fin","Plan financiero"],["ev","Evaluación"]];
+$("tabs").innerHTML=tabs.map((t,i)=>`<button data-t="${t[0]}" class="${i?"":"on"}">${t[1]}</button>`).join("");
+$("ac").innerHTML=Object.keys(A).map(k=>`<option value="${k}">${A[k].n}</option>`).join("");
+const mk=(id,it)=>$(id).innerHTML=it.map(([k,l])=>`<label>${l}<input type="number" min="0" id="${k}" value="0"></label>`).join("");
+mk("pax",["A","B","C","D"].map(z=>["p"+z,"Zona "+z]));mk("cargo",[["cF","Bodega delantera"],["cA","Bodega trasera"]]);mk("fuel",[["fR","Combustible en rampa"],["fT","Taxi"],["fTr","Trayecto (trip)"]]);
+const cur=()=>A[$("ac").value];
+function pre(n){const a=cur(),P=[[[.8,.8,.8,.8],.4,.4,.55,.7],[[.4,.6,1,1],.1,1,.4,.7],[[1,1,1,1],1,1,1,.7]][n];
+["A","B","C","D"].forEach((z,i)=>$("p"+z).value=Math.round(a.s*P[0][i]));
+$("cF").value=Math.round(a.cf*P[1]);$("cA").value=Math.round(a.ca*P[2]);$("fR").value=Math.round(a.fc*P[3]);$("fT").value=a.tx;$("fTr").value=Math.round(a.fc*P[3]*P[4]);calc()}
+const fwd=(a,w)=>{const e=a.e,t=Math.min(1,Math.max(0,(w-e[4])/(a.T-e[4])));return e[0]+t*(e[1]-e[0])};
+const aft=(a,w)=>{const e=a.e,t=Math.min(1,Math.max(0,(w-e[4])/(a.T-e[4])));return e[2]+t*(e[3]-e[2])};
+function calc(){const a=cur(),v=k=>Math.max(0,+$(k).value||0),pc=(m,w)=>((m/w)-a.L)/a.M*100;
+const cab=a.L+.29*a.M,fa=a.L+.28*a.M,hf=cab-a.d,ha=cab+a.d;
+const R=[["BEW (peso básico operativo)",a.BEW,a.L+.26*a.M],["Tripulación técnica ("+a.cr[0]+")",a.cr[0]*85,hf-4],["Tripulación de cabina ("+a.cr[1]+")",a.cr[1]*75,cab]];
+["A","B","C","D"].forEach((z,i)=>R.push(["Pasajeros zona "+z,Math.min(v("p"+z),a.s)*PW,cab+a.sp*(i-1.5)]));
+R.push(["Bodega delantera",Math.min(v("cF"),a.cf),hf],["Bodega trasera",Math.min(v("ca".replace("a","A")),a.ca),ha]);
+let W=0,M=0;R.forEach(r=>{r[3]=r[1]*r[2];W+=r[1];M+=r[3]});
+const ramp=Math.min(v("fR"),a.fc),tow=W+ramp-v("fT"),tm=M+(ramp-v("fT"))*fa,lw=tow-v("fTr"),lm=tm-v("fTr")*fa;
+R.push(["Combustible en rampa",ramp,fa,ramp*fa]);
+const P=[["ZFW",W,M,a.Z],["TOW",tow,tm,a.T],["LW",lw,lm,a.W]].map(p=>{p[4]=pc(p[2],p[1]);p[5]=p[1]<=p[3];p[6]=p[4]>=fwd(a,p[1]);p[7]=p[4]<=aft(a,p[1]);p[8]=p[5]&&p[6]&&p[7];return p});
+$("res").innerHTML=`<table><tr><th></th><th>Peso</th><th>Máx.</th><th>%MAC</th><th>Estado</th></tr>`+P.map(p=>`<tr><td>${p[0]}</td><td>${f(p[1])}</td><td>${f(p[3])}</td><td>${f(p[4],1)}</td><td><span class="st ${p[8]?"ok":"bad"}">${p[8]?"OK":"FUERA DE LÍMITES"}</span></td></tr>`).join("")+`</table>`;
+$("tb").innerHTML=`<tr><th>Concepto</th><th>Peso (kg)</th><th>Brazo (m)</th><th>Momento</th></tr>`+R.map(r=>`<tr><td>${r[0]}</td><td>${f(r[1])}</td><td>${f(r[2],2)}</td><td>${f(r[3])}</td></tr>`).join("")+`<tr><td><b>Total rampa</b></td><td><b>${f(W+ramp)}</b></td><td></td><td><b>${f(M+ramp*fa)}</b></td></tr>`;
+const msg=[];P.forEach(p=>{if(!p[5])msg.push(`${p[0]} supera el máximo en ${f(p[1]-p[3])} kg: reduzca carga, pasajeros o combustible.`);
+if(!p[6])msg.push(`${p[0]}: CG adelantado (${f(p[4],1)} %MAC, mínimo ${f(fwd(a,p[1]),1)}). Mueva carga o pasajeros hacia atrás.`);
+if(!p[7])msg.push(`${p[0]}: CG atrasado (${f(p[4],1)} %MAC, máximo ${f(aft(a,p[1]),1)}). Mueva carga o pasajeros hacia adelante.`)});
+$("ai").innerHTML=msg.length?"<ul>"+msg.map(m=>`<li>${m}</li>`).join("")+"</ul>":`<p>Condición dentro de límites. Margen de MTOW: ${f(a.T-tow)} kg. Margen de CG en despegue: ${f(Math.min(P[1][4]-fwd(a,tow),aft(a,tow)-P[1][4]),1)} puntos %MAC.</p>`;
+draw(a,P)}
+function drawOld(a,P){const e=a.e,x0=Math.min(e[0],e[1])-4,x1=Math.max(e[2],e[3])+4,y0=e[4]*.9,y1=a.T*1.04;
+const X=x=>35+(Math.min(x1,Math.max(x0,x))-x0)/(x1-x0)*295,Y=w=>250-(Math.min(y1,Math.max(y0,w))-y0)/(y1-y0)*235;
+let s=`<polygon points="${[[e[0],e[4]],[e[1],a.T],[e[3],a.T],[e[2],e[4]]].map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="var(--okbg)" stroke="var(--ok)" stroke-width="1.5"/>`;
+for(let x=Math.ceil(x0/4)*4;x<=x1;x+=4)s+=`<text x="${X(x)}" y="266" text-anchor="middle">${x}</text>`;
+for(let i=0;i<5;i++){const w=y0+(y1-y0)*i/4;s+=`<text x="30" y="${Y(w)+4}" text-anchor="end">${Math.round(w/1000)}t</text>`}
+s+=`<text x="182" y="279" text-anchor="middle">%MAC</text>`;
+P.forEach(p=>{const c=p[8]?"var(--ac)":"var(--bad)";s+=`<circle cx="${X(p[4])}" cy="${Y(p[1])}" r="5" fill="${c}"/><text x="${X(p[4])+8}" y="${Y(p[1])+4}" style="fill:${c}">${p[0]}</text>`});$("env").innerHTML=s}
+function draw(a,P){const e=a.e,x0=Math.floor((Math.min(e[0],e[1])-4)/4)*4,x1=Math.ceil((Math.max(e[2],e[3])+4)/4)*4,y0=e[4]*.9,y1=a.T*1.04,L=44,R=330,Tp=14,B=238;
+const X=x=>L+(Math.min(x1,Math.max(x0,x))-x0)/(x1-x0)*(R-L),Y=w=>B-(Math.min(y1,Math.max(y0,w))-y0)/(y1-y0)*(B-Tp);
+let s=`<rect x="${L}" y="${Tp}" width="${R-L}" height="${B-Tp}" rx="6" fill="var(--bg)" stroke="var(--bd)"/>`;
+for(let x=x0;x<=x1;x+=4)s+=`<line x1="${X(x)}" x2="${X(x)}" y1="${Tp}" y2="${B}" stroke="var(--bd)" stroke-dasharray="3 4"/><text x="${X(x)}" y="${B+14}" text-anchor="middle">${x}</text>`;
+for(let i=0;i<=4;i++){const w=y0+(y1-y0)*i/4;s+=`<line x1="${L}" x2="${R}" y1="${Y(w)}" y2="${Y(w)}" stroke="var(--bd)" stroke-dasharray="3 4"/><text x="${L-6}" y="${Y(w)+4}" text-anchor="end">${(w/1000).toFixed(w<20000?1:0)}</text>`}
+const pts=[[e[0],e[4]],[e[1],a.T],[e[3],a.T],[e[2],e[4]]].map(p=>X(p[0])+","+Y(p[1])).join(" "),cx=(X(e[0])+X(e[1])+X(e[2])+X(e[3]))/4,cy=Y(e[4])-(Y(e[4])-Y(a.T))*.18;
+s+=`<polygon points="${pts}" fill="var(--okbg)" stroke="var(--ok)" stroke-width="2" stroke-linejoin="round"/><text x="${cx}" y="${cy}" text-anchor="middle" style="fill:var(--ok);opacity:.6;font-size:10px;letter-spacing:1px">ZONA PERMITIDA</text>`;
+s+=`<text x="${R-4}" y="${Y(a.T)-5}" text-anchor="end">MTOW ${f(a.T)} kg</text><text x="${(L+R)/2}" y="${B+30}" text-anchor="middle">%MAC</text><text transform="translate(11 ${(Tp+B)/2}) rotate(-90)" text-anchor="middle">Peso (t)</text>`;
+s+=`<line x1="${X(P[1][4])}" y1="${Y(P[1][1])}" x2="${X(P[2][4])}" y2="${Y(P[2][1])}" stroke="var(--mu)" stroke-dasharray="4 3"/>`;
+P.forEach((p,i)=>{const c=p[8]?"var(--ac)":"var(--bad)",x=X(p[4]),y=Y(p[1]),r=x>R-80;s+=`<circle cx="${x}" cy="${y}" r="6" fill="${c}" stroke="var(--card)" stroke-width="2"/><text x="${r?x-10:x+10}" y="${y+[-6,4,14][i]}" text-anchor="${r?"end":"start"}" style="fill:${c};font-weight:600">${p[0]} ${f(p[4],1)}%</text>`});
+$("env").innerHTML=s}
+const PD={};
+function pfD(){const k=$("pfa").value+"|"+$("pfc").value;return PD[k]||(PD[k]={n:"",ca:"",ct:"",ra:"",rt:"",r:Array.from({length:6},()=>["","","","",""])})}
+function pfInit(){$("pfa").innerHTML=Object.keys(A).map(k=>`<option value="${k}">${A[k].n}</option>`).join("");$("pfc").innerHTML=[1,2,3].map(i=>`<option value="${i}">Configuración ${i}</option>`).join("");pfRender()}
+function pfRender(){const d=pfD(),h=["Peso (kg)","V1 (kt)","VR (kt)","V2 (kt)","Dist. req. (m)"];
+$("pft").innerHTML=`<tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr>`+d.r.map((r,i)=>`<tr>${r.map((v,j)=>`<td><input type="number" step="any" value="${v}" oninput="pfSet(${i},${j},this.value)"></td>`).join("")}</tr>`).join("");
+$("pfn").value=d.n;["ca","ct","ra","rt"].forEach(k=>$("pf_"+k).value=d[k]);pfCalc()}
+function pfSet(i,j,v){pfD().r[i][j]=v;pfCalc()}
+function pfMeta(k,v){pfD()[k]=v;pfCalc()}
+function pfTow(){if(EXL&&EXL[1][1]>0){$("pf_w").value=Math.round(EXL[1][1]);pfCalc()}else $("pfr").innerHTML='<p class="note">Primero calcule un caso en la pestaña Ejercicio libre.</p>'}
+function pfCalc(){const d=pfD(),g=id=>parseFloat($(id).value),w=g("pf_w"),al=g("pf_al")||0,t=g("pf_t"),pi=g("pf_p"),tt=isNaN(t)?0:t;
+const rows=d.r.map(r=>r.map(parseFloat)).filter(r=>[0,1,2,3].every(i=>!isNaN(r[i]))).sort((a,b)=>a[0]-b[0]);let h="";
+if(rows.length<2)h='<p><span class="st bad">TABLA INCOMPLETA</span></p><p class="note">Complete al menos 2 filas (peso, V1, VR y V2) con los datos de la DGAC o del fabricante.</p>';
+else if(isNaN(w))h='<p class="note">Ingrese el peso de despegue.</p>';
+else if(w<rows[0][0]||w>rows[rows.length-1][0])h=`<p><span class="st bad">PESO FUERA DE LA TABLA</span></p><p class="note">La tabla cubre de ${f(rows[0][0])} a ${f(rows[rows.length-1][0])} kg.</p>`;
+else{let i=0;while(i<rows.length-2&&w>rows[i+1][0])i++;const a=rows[i],b=rows[i+1],u=(w-a[0])/(b[0]-a[0]),ip=j=>a[j]+(b[j]-a[j])*u;
+const ca=parseFloat(d.ca)||0,ct=parseFloat(d.ct)||0,ra=parseFloat(d.ra)||0,rt=isNaN(parseFloat(d.rt))?tt:parseFloat(d.rt),cor=ca*(al-ra)/1000+ct*(tt-rt)/10;
+const V=[1,2,3].map(j=>Math.round(ip(j)+cor)),dd=!isNaN(a[4])&&!isNaN(b[4])?a[4]+(b[4]-a[4])*u:null;
+const bad=!(V[0]<=V[1]&&V[1]<=V[2]);
+h=`<table><tr><th>Parámetro</th><th>Valor</th></tr><tr><td>V1</td><td>${V[0]} kt</td></tr><tr><td>VR</td><td>${V[1]} kt</td></tr><tr><td>V2</td><td>${V[2]} kt</td></tr><tr><td>Corrección aplicada</td><td>${cor>=0?"+":""}${f(cor,1)} kt</td></tr>${dd!==null?`<tr><td>Distancia requerida</td><td>${f(dd)} m</td></tr>`:""}${dd!==null&&!isNaN(pi)?`<tr><td>Margen de pista</td><td>${f(pi-dd)} m <span class="st ${pi>=dd?"ok":"bad"}">${pi>=dd?"OK":"INSUFICIENTE"}</span></td></tr>`:""}</table>${bad?'<p><span class="st bad">REVISAR</span> Debe cumplirse V1 ≤ VR ≤ V2; verifique los datos de la tabla.</p>':""}<p class="note">Interpolación lineal por peso entre las filas ${f(a[0])} y ${f(b[0])} kg.</p>`}
+$("pfr").innerHTML=h}
+pfInit();
+function dbt(){const F=[["BEW","BEW"],["Z","MZFW"],["T","MTOW"],["W","MLW"]];
+$("dbt").innerHTML=`<tr><th>Aeronave</th>${F.map(x=>`<th>${x[1]} (kg)</th>`).join("")}<th>Asientos</th><th>Combustible máx.</th><th>Fuente (APA)</th></tr>`+Object.keys(A).map(k=>`<tr><td>${A[k].n}</td>${F.map(x=>`<td><input type="number" value="${A[k][x[0]]}" onchange="A['${k}'].${x[0]}=+this.value;calc()"></td>`).join("")}<td>${A[k].s*4}</td><td>${f(A[k].fc)}</td><td class="w">Pendiente</td></tr>`).join("")}
+function fin(){const g=k=>+$(k).value||0,dev=g("f1")*g("f2"),ini=dev+g("f4"),an=g("f3")+g("f5"),man=g("f6")/60*g("f8")*365*g("f9"),dig=g("f7")/60*g("f8")*365*g("f9"),ah=man-dig-an;
+$("fres").innerHTML=`<table><tr><th>Concepto</th><th>USD</th></tr><tr><td>Inversión inicial (desarrollo + capacitación)</td><td>${f(ini)}</td></tr><tr><td>Costo anual de operar la herramienta</td><td>${f(an)}</td></tr><tr><td>Costo anual de mano de obra, proceso manual</td><td>${f(man)}</td></tr><tr><td>Costo anual de mano de obra, proceso digital</td><td>${f(dig)}</td></tr><tr><td><b>Ahorro neto anual</b></td><td><b>${f(ah)}</b></td></tr><tr><td><b>Recuperación de la inversión</b></td><td><b>${ah>0?f(ini/ah*12,1)+" meses":"No se recupera con estos datos"}</b></td></tr></table><p class="note">No incluye el valor de evitar un error de carga, que es el beneficio principal.</p>`}
+document.querySelectorAll("#calc input,#fin input").forEach(i=>i.oninput=()=>{calc();fin()});
+$("ac").onchange=()=>{pre(0)};
+document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on",x===b));tabs.forEach(t=>$(t[0]).classList.toggle("hide",t[0]!==b.dataset.t))});
+const EXD=[["BEW",1,42500,17.9],["Tripulación técnica",2,85,5.5],["Tripulación de cabina",4,75,18],["Pasajeros zona A",30,84,11.5],["Pasajeros zona B",40,84,15.9],["Pasajeros zona C",45,84,20.3],["Pasajeros zona D",35,84,24.7],["Bodega delantera",1,2000,9.5],["Bodega trasera",1,3000,25.5]];
+const EXP={L:16.8,M:4.2,Z:61000,T:73500,W:64500,fw:20,af:36,fr:13000,tx:200,tr:9000,fa:17.4};
+const EXK=[["L","LEMAC (m)"],["M","MAC (m)"],["Z","MZFW (kg)"],["T","MTOW (kg)"],["W","MLW (kg)"],["fw","CG delantero (%MAC)"],["af","CG trasero (%MAC)"],["fr","Combustible rampa (kg)"],["tx","Taxi (kg)"],["tr","Trayecto (kg)"],["fa","Brazo combustible (m)"]];
+function exInit(){$("exb").innerHTML=`<div class="tw"><table><tr><th>Concepto</th><th>Cant.</th><th>kg c/u</th><th>Brazo (m)</th></tr>${EXD.map((r,i)=>`<tr><td>${r[0]}</td>${[1,2,3].map(j=>`<td><input type="number" step="any" id="x${i}_${j}" value="${r[j]}"></td>`).join("")}</tr>`).join("")}</table></div><div class="grid" style="margin:10px 0">${EXK.map(k=>`<label>${k[1]}<input type="number" step="any" id="x_${k[0]}" value="${EXP[k[0]]}"></label>`).join("")}</div><div id="exr"></div>`;document.querySelectorAll("#exb input").forEach(i=>i.oninput=exCalc);exCalc()}
+function exCalc(){const g=id=>+$(id).value||0,p={};EXK.forEach(k=>p[k[0]]=g("x_"+k[0]));
+let W=0,M=0;const R=EXD.map((r,i)=>{const w=g(`x${i}_1`)*g(`x${i}_2`),a=g(`x${i}_3`);W+=w;M+=w*a;return[r[0],w,a,w*a]});
+const n=p.fr-p.tx,fm=n*p.fa,ft=p.tr*p.fa;
+const C=[["ZFW",W,M,p.Z],["TOW",W+n,M+fm,p.T],["LW",W+n-p.tr,M+fm-ft,p.W]].map(c=>{c[4]=c[1]?c[2]/c[1]:0;c[5]=p.M?(c[4]-p.L)/p.M*100:0;c[6]=c[3]-c[1];c[7]=Math.min(c[5]-p.fw,p.af-c[5]);c[8]=c[6]>=0&&c[7]>=0;return c});
+const row=(a,b,c,d,bold)=>`<tr><td>${bold?"<b>"+a+"</b>":a}</td><td>${b}</td><td>${c}</td><td>${d}</td></tr>`;
+$("exr").innerHTML=`<h2>Resultados</h2><div class="tw"><table><tr><th>Condición</th><th>Peso (kg)</th><th>Momento</th><th>CG (m)</th><th>%MAC</th><th>Máx. (kg)</th><th>Margen peso (kg)</th><th>Margen CG (pts)</th><th>Estado</th></tr>${C.map(c=>`<tr><td>${c[0]}</td><td>${f(c[1])}</td><td>${f(c[2])}</td><td>${f(c[4],2)}</td><td>${f(c[5],1)}</td><td>${f(c[3])}</td><td>${f(c[6])}</td><td>${f(c[7],1)}</td><td><span class="st ${c[8]?"ok":"bad"}">${c[8]?"OK":"FUERA DE LÍMITES"}</span></td></tr>`).join("")}</table></div><h2 style="margin-top:12px">Tabla de momentos</h2><div class="tw"><table><tr><th>Concepto</th><th>Peso (kg)</th><th>Brazo (m)</th><th>Momento</th></tr>${R.map(r=>row(r[0],f(r[1]),f(r[2],2),f(r[3]))).join("")}${row("Total ZFW",f(C[0][1]),"",f(C[0][2]),1)}${row("+ Combustible rampa − taxi",f(n),f(p.fa,2),f(fm))}${row("Total TOW",f(C[1][1]),"",f(C[1][2]),1)}${row("− Combustible trayecto",f(-p.tr),f(p.fa,2),f(-ft))}${row("Total LW",f(C[2][1]),"",f(C[2][2]),1)}</table></div><p class="note">Margen CG = puntos de %MAC hasta el límite más cercano (negativo = fuera). Para cambiar un caso, modifique los datos y los resultados se actualizan.</p>${exCmp(C)}`}
+let EXB=null,EXL=null;
+function exBase(){if(EXL){EXB=EXL.map(c=>c[5]);exCalc()}}
+function exClear(){document.querySelectorAll("#exb input").forEach(i=>i.value="");EXB=null;exCalc()}
+function exAc(){const k=$("exa").value;if(!k){exClear();return}const a=A[k],r=x=>Math.round(x*100)/100,cab=a.L+.29*a.M,hf=cab-a.d,ha=cab+a.d,fa=a.L+.28*a.M;
+const D=[[1,a.BEW,a.L+.26*a.M],[a.cr[0],85,hf-4],[a.cr[1],75,cab]];for(let i=0;i<4;i++)D.push([Math.round(a.s*.8),84,cab+a.sp*(i-1.5)]);D.push([1,Math.round(a.cf*.4),hf],[1,Math.round(a.ca*.4),ha]);
+D.forEach((d,i)=>{$(`x${i}_1`).value=d[0];$(`x${i}_2`).value=d[1];$(`x${i}_3`).value=r(d[2])});
+const fr=Math.round(a.fc*.55),P={L:a.L,M:a.M,Z:a.Z,T:a.T,W:a.W,fw:a.e[1],af:a.e[3],fr:fr,tx:a.tx,tr:Math.round(fr*.7),fa:r(fa)};
+for(const q in P)$("x_"+q).value=P[q];EXB=null;exCalc()}
+function exCmp(C){EXL=C;if(!EXB)return `<p class="note">Pulse «Guardar como caso base» para comparar después el efecto de un cambio en el CG.</p>`;
+return `<h2 style="margin-top:12px">Comparación con el caso base</h2><div class="tw"><table><tr><th>Condición</th><th>%MAC base</th><th>%MAC actual</th><th>Cambio (pts)</th><th>Dirección del CG</th></tr>${C.map((c,i)=>{const d=c[5]-EXB[i];return `<tr><td>${c[0]}</td><td>${f(EXB[i],1)}</td><td>${f(c[5],1)}</td><td>${f(d,1)}</td><td>${Math.abs(d)<.05?"sin cambio":d<0?"hacia adelante":"hacia atrás"}</td></tr>`}).join("")}</table></div>`}
+dbt();fin();pre(0);exInit();exClear();$("exa").innerHTML='<option value="">En blanco</option>'+Object.keys(A).map(k=>`<option value="${k}">${A[k].n}</option>`).join("");
+</script></main></body></html>
